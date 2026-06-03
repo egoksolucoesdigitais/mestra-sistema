@@ -7,7 +7,7 @@ import PageHeader from '../components/ui/PageHeader'
 import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
-import { DndContext, useDroppable, useDraggable, DragEndEvent } from '@dnd-kit/core'
+import { DndContext, useDroppable, useDraggable, DragEndEvent, DragOverlay } from '@dnd-kit/core'
 import { format } from 'date-fns'
 import { AlertCircle, Eye, RefreshCw, Briefcase, MapPin, Calendar, HelpCircle } from 'lucide-react'
 import clsx from 'clsx'
@@ -15,19 +15,20 @@ import clsx from 'clsx'
 // ─── COMPONENTE DRAGGABLE (CARD) ──────────────────────────────────────────────
 interface KanbanCardProps {
   lead: LeadSST
+  isOverlay?: boolean
 }
 
-function KanbanCard({ lead }: KanbanCardProps) {
+function KanbanCard({ lead, isOverlay }: KanbanCardProps) {
   const navigate = useNavigate()
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: lead.id,
+    disabled: !!isOverlay,
   })
 
-  // Estilo de transformação do Dnd-kit
-  const style = transform
+  // Estilo de transformação do Dnd-kit (apenas se não for overlay)
+  const style = !isOverlay && transform
     ? {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        zIndex: 50,
       }
     : undefined
 
@@ -42,13 +43,14 @@ function KanbanCard({ lead }: KanbanCardProps) {
 
   return (
     <div
-      ref={setNodeRef}
+      ref={isOverlay ? undefined : setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
+      {...(isOverlay ? {} : attributes)}
+      {...(isOverlay ? {} : listeners)}
       className={clsx(
-        'group bg-[var(--bg-card)] border border-[var(--border-card)] rounded-xl p-4 shadow-sm hover:shadow-md hover:border-[var(--accent)]/40 transition-all duration-200 cursor-grab active:cursor-grabbing flex flex-col gap-2.5 relative touch-none',
-        isDragging && 'opacity-40 border-[var(--accent)] scale-[1.02] shadow-lg'
+        'group bg-[var(--bg-card)] border border-[var(--border-card)] rounded-xl p-4 shadow-sm hover:shadow-md hover:border-[var(--accent)]/40 transition-all duration-200 flex flex-col gap-2.5 relative touch-none',
+        isOverlay ? 'cursor-grabbing scale-[1.02] shadow-xl border-[var(--accent)]' : 'cursor-grab active:cursor-grabbing',
+        !isOverlay && isDragging && 'opacity-20 border-dashed border-[var(--border-card)]'
       )}
     >
       {/* Botão de Visualização Rápida no Canto */}
@@ -177,6 +179,9 @@ export default function Kanban() {
   const [loading, setLoading] = useState(true)
   const [leads, setLeads] = useState<LeadSST[]>([])
 
+  // State para o card ativo no DragOverlay
+  const [activeId, setActiveId] = useState<string | null>(null)
+
   // State para confirmação de Fechado
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [pendingMove, setPendingMove] = useState<{ leadId: string; targetStatus: LeadStatus } | null>(null)
@@ -226,8 +231,13 @@ export default function Kanban() {
     }
   }, [])
 
+  const handleDragStart = (event: any) => {
+    setActiveId(event.active.id as string)
+  }
+
   // Processa o fim do Drag
   const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveId(null)
     const { active, over } = event
     if (!over) return
 
@@ -300,7 +310,7 @@ export default function Kanban() {
       />
 
       {/* Grid de Colunas Kanban */}
-      <DndContext onDragEnd={handleDragEnd}>
+      <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-6 -mx-6 px-6 scrollbar-thin">
           {columns.map(col => (
             <KanbanColumn
@@ -312,6 +322,12 @@ export default function Kanban() {
             />
           ))}
         </div>
+
+        <DragOverlay>
+          {activeId ? (
+            <KanbanCard lead={leads.find(l => l.id === activeId)!} isOverlay />
+          ) : null}
+        </DragOverlay>
       </DndContext>
 
       {/* Modal de Confirmação de Conversão */}
