@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import type { LeadSST, DateFilter } from '../types'
+import type { LeadSST } from '../types'
 import { useToast } from '../contexts/ToastContext'
 import PageHeader from '../components/ui/PageHeader'
-import FilterBar from '../components/ui/FilterBar'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
 import { format } from 'date-fns'
@@ -17,27 +16,21 @@ export default function FollowUp() {
   const [loading, setLoading] = useState(true)
   const [leads, setLeads] = useState<LeadSST[]>([])
   const [searchTerm, setSearchTerm] = useState('')
-  
-  // Filtro de Data
-  const [dateFilter, setDateFilter] = useState<DateFilter>({
-    preset: 'este_mes',
-    startDate: format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd'),
-    endDate: format(new Date(), 'yyyy-MM-dd'),
-  })
 
   useEffect(() => {
     async function loadFollowUps() {
       try {
         setLoading(true)
         
-        // Busca leads com status 'aguardando_retorno' ou 'proposta_enviada' no período
+        // Busca leads que atendam simultaneamente a:
+        // minutos_ultima_mensagem >= 20, status != 'fechado' e status != 'perdido'
         const { data, error } = await supabase
           .from('leads_sst')
           .select('*')
-          .in('status', ['aguardando_retorno', 'proposta_enviada'])
-          .gte('inicio_atendimento', `${dateFilter.startDate}T00:00:00-04:00`)
-          .lte('inicio_atendimento', `${dateFilter.endDate}T23:59:59-04:00`)
-          .order('ultima_mensagem', { ascending: true }) // Os mais antigos sem resposta primeiro!
+          .gte('minutos_ultima_mensagem', 20)
+          .neq('status', 'fechado')
+          .neq('status', 'perdido')
+          .order('inicio_atendimento', { ascending: false })
 
         if (error) throw error
         setLeads(data || [])
@@ -49,7 +42,7 @@ export default function FollowUp() {
       }
     }
     loadFollowUps()
-  }, [dateFilter])
+  }, [])
 
   // Filtro na tela de busca por texto
   const filteredLeads = leads.filter(lead => {
@@ -79,12 +72,9 @@ export default function FollowUp() {
         description="Leads que precisam de acompanhamento comercial ou aguardam retorno para avançar no funil. O Agente de IA realiza o acompanhamento e follow up automaticamente, garantindo que nenhuma oportunidade seja perdida."
       />
 
-      {/* Filtros e Busca */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <FilterBar value={dateFilter} onChange={setDateFilter} />
-
-        {/* Input de Busca */}
-        <div className="relative w-full md:max-w-xs mb-6">
+      {/* Busca sem filtro de datas */}
+      <div className="flex justify-end mb-4">
+        <div className="relative w-full md:max-w-xs">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
             type="text"
@@ -99,22 +89,28 @@ export default function FollowUp() {
       {loading ? (
         <Card className="animate-pulse">
           <div className="space-y-4">
-            <div className="grid grid-cols-7 gap-4">
+            <div className="grid grid-cols-9 gap-4">
               <div className="h-6 bg-[var(--border-card)] rounded" />
               <div className="h-6 bg-[var(--border-card)] rounded col-span-2" />
               <div className="h-6 bg-[var(--border-card)] rounded" />
               <div className="h-6 bg-[var(--border-card)] rounded" />
               <div className="h-6 bg-[var(--border-card)] rounded" />
               <div className="h-6 bg-[var(--border-card)] rounded" />
+              <div className="h-6 bg-[var(--border-card)] rounded" />
+              <div className="h-6 bg-[var(--border-card)] rounded animate-pulse" />
+              <div className="h-6 bg-[var(--border-card)] rounded" />
             </div>
             {[1, 2, 3].map(i => (
-              <div key={i} className="grid grid-cols-7 gap-4 pt-4 border-t border-[var(--border-card)]">
+              <div key={i} className="grid grid-cols-9 gap-4 pt-4 border-t border-[var(--border-card)]">
                 <div className="h-4 bg-[var(--border-card)] rounded" />
                 <div className="h-4 bg-[var(--border-card)] rounded col-span-2" />
                 <div className="h-4 bg-[var(--border-card)] rounded" />
                 <div className="h-4 bg-[var(--border-card)] rounded" />
                 <div className="h-4 bg-[var(--border-card)] rounded" />
+                <div className="h-4 bg-[var(--border-card)] rounded" />
+                <div className="h-4 bg-[var(--border-card)] rounded" />
                 <div className="h-4 bg-[var(--border-card)] rounded animate-pulse" />
+                <div className="h-4 bg-[var(--border-card)] rounded" />
               </div>
             ))}
           </div>
@@ -126,7 +122,7 @@ export default function FollowUp() {
           </div>
           <h3 className="text-lg font-bold font-display text-[var(--text-main)] mb-1">Nenhum follow up pendente</h3>
           <p className="text-sm text-[var(--text-muted)] max-w-sm">
-            Parabéns! Todos os leads do período estão com o atendimento em dia. Nenhuma oportunidade de contato aguardando retorno ou proposta abandonada.
+            Parabéns! Todos os leads estão com o atendimento em dia ou respondidos recentemente. Nenhuma oportunidade de contato aguardando retorno.
           </p>
         </Card>
       ) : (
@@ -140,8 +136,10 @@ export default function FollowUp() {
                   <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">WhatsApp</th>
                   <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Empresa</th>
                   <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Serviço de Interesse</th>
+                  <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Motivo do Contato</th>
+                  <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Status</th>
                   <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Última Mensagem</th>
-                  <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Status</th>
+                  <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Minutos sem Resposta</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-card)] bg-[var(--bg-card)]">
@@ -151,28 +149,36 @@ export default function FollowUp() {
                     onClick={() => navigate(`/leads/${lead.id}`)}
                     className="hover:bg-[var(--accent-light)]/40 dark:hover:bg-white/5 cursor-pointer transition-colors duration-150"
                   >
-                    <td className="px-6 py-4 text-xs font-semibold text-[var(--text-main)]">
+                    <td className="px-6 py-4 text-xs font-semibold text-[var(--text-main)] whitespace-nowrap">
                       {formatDateTime(lead.inicio_atendimento)}
                     </td>
                     <td className="px-6 py-4 text-xs font-bold text-[var(--text-main)]">
                       {lead.nome_lead || <span className="italic text-[var(--text-muted)] font-normal">Sem nome</span>}
                     </td>
-                    <td className="px-6 py-4 text-xs text-[var(--text-muted)] font-medium">
+                    <td className="px-6 py-4 text-xs text-[var(--text-muted)] font-medium whitespace-nowrap">
                       {lead.whatsapp_lead}
                     </td>
                     <td className="px-6 py-4 text-xs text-[var(--text-muted)] font-medium">
-                      {lead.empresa || '-'}
+                      {lead.empresa || '—'}
                     </td>
                     <td className="px-6 py-4 text-xs text-[var(--text-muted)] font-medium">
-                      {lead.servico_interesse || '-'}
+                      {lead.servico_interesse || '—'}
                     </td>
-                    <td className="px-6 py-4 text-xs font-semibold text-[var(--text-muted)]">
-                      {formatDateTime(lead.ultima_mensagem)}
+                    <td className="px-6 py-4 text-xs text-[var(--text-muted)] font-medium max-w-xs truncate" title={lead.motivo_contato || ''}>
+                      {lead.motivo_contato || '—'}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-xs">
                       <Badge status={lead.status}>
                         {lead.status.replace('_', ' ')}
                       </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-xs font-semibold text-[var(--text-muted)] whitespace-nowrap">
+                      {formatDateTime(lead.ultima_mensagem)}
+                    </td>
+                    <td className="px-6 py-4 text-xs font-bold text-[var(--text-main)] text-right whitespace-nowrap">
+                      {lead.minutos_ultima_mensagem !== null && lead.minutos_ultima_mensagem !== undefined 
+                        ? `${Math.round(Number(lead.minutos_ultima_mensagem))} min` 
+                        : '—'}
                     </td>
                   </tr>
                 ))}
