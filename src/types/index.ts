@@ -38,6 +38,7 @@ export interface LeadSST {
   inicio_atendimento: string | null
   ultima_mensagem: string | null
   minutos_ultima_mensagem: number | null
+  minutos_sem_resposta?: number | null
   follow_up_1: string | null
   follow_up_2: string | null
   follow_up_3: string | null

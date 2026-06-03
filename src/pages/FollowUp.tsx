@@ -22,14 +22,11 @@ export default function FollowUp() {
       try {
         setLoading(true)
         
-        // Busca leads que atendam simultaneamente a:
-        // minutos_ultima_mensagem >= 20, status != 'fechado' e status != 'perdido'
+        // Busca leads da view leads_followup_view que calcula minutos_sem_resposta em tempo real
         const { data, error } = await supabase
-          .from('leads_sst')
+          .from('leads_followup_view')
           .select('*')
-          .gte('minutos_ultima_mensagem', 20)
-          .neq('status', 'fechado')
-          .neq('status', 'perdido')
+          .gte('minutos_sem_resposta', 20)
           .order('inicio_atendimento', { ascending: false })
 
         if (error) throw error
@@ -176,8 +173,8 @@ export default function FollowUp() {
                       {formatDateTime(lead.ultima_mensagem)}
                     </td>
                     <td className="px-6 py-4 text-xs font-bold text-[var(--text-main)] text-right whitespace-nowrap">
-                      {lead.minutos_ultima_mensagem !== null && lead.minutos_ultima_mensagem !== undefined 
-                        ? `${Math.round(Number(lead.minutos_ultima_mensagem))} min` 
+                      {lead.minutos_sem_resposta !== null && lead.minutos_sem_resposta !== undefined 
+                        ? `${Math.round(Number(lead.minutos_sem_resposta))} min` 
                         : '—'}
                     </td>
                   </tr>
