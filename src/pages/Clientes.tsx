@@ -42,14 +42,21 @@ export default function Clientes() {
     try {
       setRemoving(true)
       
-      // Atualiza o lead de volta para 'em_atendimento' no banco
-      // A trigger da tabela 'leads_sst' vai deletar automaticamente o cliente correspondente de 'clientes_sst'
-      const { error } = await supabase
+      // 1. Deleta o registro diretamente da tabela 'clientes_sst' (agora permitido pela política de DELETE RLS)
+      const { error: deleteError } = await supabase
+        .from('clientes_sst')
+        .delete()
+        .eq('id', selectedCliente.id)
+        
+      if (deleteError) throw deleteError
+
+      // 2. Atualiza o lead de volta para 'em_atendimento' no banco
+      const { error: updateError } = await supabase
         .from('leads_sst')
         .update({ status: 'em_atendimento' })
         .eq('id', selectedCliente.lead_id)
         
-      if (error) throw error
+      if (updateError) throw updateError
       
       // Otimista: remove localmente da lista de clientes
       setClientes(prev => prev.filter(c => c.id !== selectedCliente.id))
