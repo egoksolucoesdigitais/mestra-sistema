@@ -1,73 +1,29 @@
-# React + TypeScript + Vite
+# Mestra | Gestão de Segurança e Saúde Ocupacional (SST)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Este projeto é um painel corporativo moderno e premium para a **Mestra | Segurança e Saúde Ocupacional**. Ele é integrado diretamente ao Supabase para autenticação e gestão de banco de dados (tabela de serviços de SST).
 
-Currently, two official plugins are available:
+## Tecnologias Utilizadas
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Frontend**: React + TypeScript + Vite
+- **Estilização**: Tailwind CSS v4 (com paleta de cores personalizada e tema escuro premium)
+- **Banco de Dados & Autenticação**: Supabase
+- **Ícones**: Lucide React
+- **Navegação**: React Router DOM (configurado com roteamento SPA)
 
-## React Compiler
+## Funcionalidades
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- 🔒 **Tela de Login Premium**: Interface de autenticação com glassmorphism, suporte à validação em tempo real e preenchimento de teste rápido.
+- 📊 **Dashboard Interativo**: Estatísticas chave, alertas em tempo real e controle de serviços SST.
+- 🛠️ **Gestão de Serviços SST**: Listagem de serviços cadastrados em banco por categorias (Segurança do Trabalho, Higiene Ocupacional, Ergonomia, Medicina do Trabalho, etc.).
+- 🚀 **Pronto para Produção**: Configurado com roteamento SPA correto para deploys na Vercel (evitando o erro de tela branca/404 ao atualizar a página).
 
-## Expanding the ESLint configuration
+## Estrutura do Projeto
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- `/src/contexts`: Provedores de contexto para Autenticação e Notificações (Toast).
+- `/src/pages`: Páginas da aplicação (`Login`, `Dashboard`).
+- `/src/lib`: Configuração do cliente do Supabase.
+- `/src/components`: Componentes reutilizáveis de UI.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
+*Mestra SST - 2026*
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
