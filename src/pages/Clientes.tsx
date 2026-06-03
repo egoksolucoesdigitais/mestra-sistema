@@ -6,8 +6,10 @@ import { useToast } from '../contexts/ToastContext'
 import PageHeader from '../components/ui/PageHeader'
 import FilterBar from '../components/ui/FilterBar'
 import Card from '../components/ui/Card'
+import Modal from '../components/ui/Modal'
+import Button from '../components/ui/Button'
 import { format } from 'date-fns'
-import { Search, UserCheck } from 'lucide-react'
+import { Search, UserCheck, Trash2, AlertCircle } from 'lucide-react'
 
 export default function Clientes() {
   const navigate = useNavigate()
@@ -23,6 +25,45 @@ export default function Clientes() {
     startDate: format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd'),
     endDate: format(new Date(), 'yyyy-MM-dd'),
   })
+
+  // States para remoção de cliente (desfazer conversão)
+  const [showRemoveModal, setShowRemoveModal] = useState(false)
+  const [selectedCliente, setSelectedCliente] = useState<ClienteSST | null>(null)
+  const [removing, setRemoving] = useState(false)
+
+  const handleRemoveClick = (cliente: ClienteSST) => {
+    setSelectedCliente(cliente)
+    setShowRemoveModal(true)
+  }
+
+  const executeRemoveCliente = async () => {
+    if (!selectedCliente || !selectedCliente.lead_id) return
+    
+    try {
+      setRemoving(true)
+      
+      // Atualiza o lead de volta para 'em_atendimento' no banco
+      // A trigger da tabela 'leads_sst' vai deletar automaticamente o cliente correspondente de 'clientes_sst'
+      const { error } = await supabase
+        .from('leads_sst')
+        .update({ status: 'em_atendimento' })
+        .eq('id', selectedCliente.lead_id)
+        
+      if (error) throw error
+      
+      // Otimista: remove localmente da lista de clientes
+      setClientes(prev => prev.filter(c => c.id !== selectedCliente.id))
+      
+      showToast('Conversão desfeita! O contato retornou para "Em Atendimento" no Kanban.', 'success')
+    } catch (err) {
+      console.error('Erro ao remover cliente:', err)
+      showToast('Erro ao remover cliente. Tente novamente.', 'error')
+    } finally {
+      setRemoving(false)
+      setShowRemoveModal(false)
+      setSelectedCliente(null)
+    }
+  }
 
   useEffect(() => {
     async function loadClientes() {
@@ -151,6 +192,7 @@ export default function Clientes() {
                   <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Empresa</th>
                   <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Cidade</th>
                   <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Serviço de Interesse</th>
+                  <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-card)] bg-[var(--bg-card)]">
@@ -182,6 +224,15 @@ export default function Clientes() {
                       <td className="px-6 py-4 text-xs text-[var(--text-muted)] font-medium">
                         {lead.servico_interesse || '-'}
                       </td>
+                      <td className="px-6 py-4 text-xs text-right" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleRemoveClick(cliente)}
+                          className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 active:scale-95 transition-all cursor-pointer inline-flex items-center justify-center border-none bg-transparent"
+                          title="Desfazer conversão (Mover de volta para Em Atendimento)"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </td>
                     </tr>
                   )
                 })}
@@ -190,6 +241,52 @@ export default function Clientes() {
           </div>
         </Card>
       )}
+
+      {/* Modal de Confirmação de Remoção (Desfazer Conversão) */}
+      <Modal
+        isOpen={showRemoveModal}
+        onClose={() => {
+          if (!removing) {
+            setShowRemoveModal(false)
+            setSelectedCliente(null)
+          }
+        }}
+        title="Desfazer Conversão de Cliente?"
+        size="sm"
+      >
+        <div className="flex flex-col gap-4 text-center items-center py-2">
+          <div className="p-3 bg-red-100 dark:bg-red-950/30 text-red-500 rounded-full mb-1">
+            <AlertCircle size={28} />
+          </div>
+          <p className="text-sm font-semibold text-[var(--text-main)]">
+            Deseja desfazer a conversão deste cliente?
+          </p>
+          <p className="text-xs text-[var(--text-muted)] max-w-sm">
+            O registro deste cliente será removido desta tela e o contato correspondente voltará para a coluna **"Em Atendimento"** no Kanban para que você possa continuar as tratativas.
+          </p>
+          <div className="flex gap-3 w-full mt-4">
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={removing}
+              onClick={() => {
+                setShowRemoveModal(false)
+                setSelectedCliente(null)
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              className="flex-1 bg-red-600 hover:bg-red-500 dark:bg-red-700 dark:hover:bg-red-600 text-white border-none"
+              disabled={removing}
+              onClick={executeRemoveCliente}
+            >
+              {removing ? 'Processando...' : 'Confirmar'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
